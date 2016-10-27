@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using ConsoleApplication.Events;
 
 namespace ConsoleApplication.EventStore
@@ -10,34 +11,40 @@ namespace ConsoleApplication.EventStore
         {
             var orderId = Guid.NewGuid();
 
-            yield return new EventContext
+            return GetEventPayloads(orderId)
+                    .Select((payload, i) => WrapPayload(orderId, i, payload))
+                    .Where(a => asOf == null || a.Timestamp <= asOf.Value)
+                    .OrderBy(a => a.Sequence);
+        }
+
+        private static readonly DateTimeOffset BaseTime = new DateTimeOffset(2010, 6, 7, 10, 34, 18, 0, TimeSpan.Zero);
+
+        private static IEnumerable<object> GetEventPayloads(Guid orderId)
+        {                        
+            yield return new OrderInitialized
             {
-                StreamId = orderId,
-                Sequence = 1,
-                Payload = new OrderInitialized
-                {
-                    OrderId = orderId
-                }
+                OrderId = orderId
             };
 
-            yield return new EventContext
+            yield return new OrderSubmitted
             {
-                StreamId = orderId,
-                Sequence = 2,
-                Payload = new OrderSubmitted
-                {
-                    Timestamp = DateTimeOffset.MinValue
-                }
+                Timestamp = BaseTime.AddSeconds(1)
             };
 
-            yield return new EventContext
+            yield return new DeliveryCompleted
             {
-                StreamId = orderId,
-                Sequence = 3,
-                Payload = new DeliveryCompleted
-                {
-                    Timestamp = DateTimeOffset.MinValue.AddHours(1)
-                }
+                Timestamp = BaseTime.AddSeconds(2)
+            };
+        }
+
+        private static EventContext WrapPayload(Guid streamId, int sequence, object payload)
+        {
+            return new EventContext
+            {
+                StreamId = streamId,
+                Sequence = sequence,
+                Timestamp = BaseTime.AddSeconds(sequence),
+                Payload = payload
             };
         }
     }
