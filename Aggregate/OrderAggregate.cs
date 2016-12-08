@@ -15,6 +15,8 @@ namespace ConsoleApplication.Aggregate
         public DateTimeOffset? SubmittedTimestamp { get; set; }
         public DateTimeOffset? DeliveredTimestamp { get; set; }
 
+        public readonly IDictionary<Guid, CartItemModel> Cart = new Dictionary<Guid, CartItemModel>();
+
         private static readonly IDictionary<Type, MethodInfo> ApplyMethods = 
             typeof(OrderAggregate).GetMethods(BindingFlags.Instance | BindingFlags.FlattenHierarchy | BindingFlags.Public)
             .Concat(typeof(OrderAggregate).GetMethods(BindingFlags.Instance | BindingFlags.FlattenHierarchy | BindingFlags.NonPublic))
@@ -56,6 +58,24 @@ namespace ConsoleApplication.Aggregate
         {
             Status = OrderStatus.Delivered;
             DeliveredTimestamp = @event.Timestamp;
+        }
+
+        private void Apply(ItemAddedToCart @event)
+        {
+            Cart[@event.CartEntryId] = new CartItemModel
+            {
+                ItemId = @event.ItemId,
+                Quantity = @event.Quantity,
+                Price = @event.Price
+            };
+        }
+
+        private void Apply(ItemRemovedFromCart @event)
+        {
+            if(Cart.ContainsKey(@event.CartEntryId))
+            {
+                Cart.Remove(@event.CartEntryId);
+            }
         }
     }
 

@@ -27,6 +27,12 @@ namespace ConsoleApplication
             Console.WriteLine($"OrderId: {aggregate.OrderId}");   
             Console.WriteLine($"Order status: {aggregate.Status}");
             Console.WriteLine($"Delivery time: {aggregate.DeliveredTimestamp.Value - aggregate.SubmittedTimestamp.Value})");
+
+            Console.WriteLine($"Items in cart: {aggregate.Cart.Count}");
+            foreach(var cartItem in aggregate.Cart)
+            {
+                Console.WriteLine($"Ordered {cartItem.Value.Quantity} of {cartItem.Value.ItemId} for ${cartItem.Value.Price}");
+            }
         }
 
         public static async Task<OrderAggregate> GetAggregateAsync()

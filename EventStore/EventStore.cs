@@ -26,6 +26,33 @@ namespace ConsoleApplication.EventStore
                 OrderId = orderId
             };
 
+            var itemId = Guid.NewGuid();
+            var cartEntryId = Guid.NewGuid();
+
+            yield return new ItemAddedToCart
+            {
+                ItemId = itemId,
+                CartEntryId = cartEntryId,
+                Quantity = 1,
+                Price = 18.20m
+            };
+
+            // yield return new ItemRemovedFromCart
+            // {
+            //     CartEntryId = cartEntryId
+            // };
+
+            itemId = Guid.NewGuid();
+            cartEntryId = Guid.NewGuid();
+
+            yield return new ItemAddedToCart
+            {
+                ItemId = itemId,
+                CartEntryId = cartEntryId,
+                Quantity = 1000000,
+                Price = 18471284.27m
+            };
+
             yield return new OrderSubmitted
             {
                 Timestamp = BaseTime.AddSeconds(1)
