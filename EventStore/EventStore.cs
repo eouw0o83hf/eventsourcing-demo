@@ -5,13 +5,73 @@ using ConsoleApplication.Events;
 
 namespace ConsoleApplication.EventStore
 {
+    public interface IProjection
+    {
+        void Consume(object @event);
+    }
+
+    public class NumberOfOrdersProjection : IProjection
+    {
+        public int NumberOfOrders = 0;
+
+        public void Consume(object @event)
+        {
+            var orderedEvent = @event as OrderSubmitted;
+            if(orderedEvent != null)
+            {
+                ++NumberOfOrders;
+            }
+        }
+    }
+
+    public class AverageDeliveryTimeProjection : IProjection
+    {
+        private readonly Dictionary<Guid, DateTimeOffset> _orderedDates = new Dictionary<Guid, DateTimeOffset>();
+        private readonly Dictionary<Guid, TimeSpan> _completedTimes = new Dictionary<Guid, TimeSpan>();
+        public double AverageDeliveryMilliseconds;
+
+        public void Consume(object @event)
+        {
+            var orderedEvent = @event as OrderSubmitted;
+            if(orderedEvent != null)
+            {
+                _orderedDates[Guid.Empty] = orderedEvent.Timestamp;
+                return;
+            }
+
+            var completedEvent = @event as DeliveryCompleted;
+            if(completedEvent != null)
+            {
+                _completedTimes[Guid.Empty] = completedEvent.Timestamp - _orderedDates[Guid.Empty];
+                AverageDeliveryMilliseconds = _completedTimes.Values.Average(a => a.TotalMilliseconds);
+            }
+        }
+    }
+
     public class EventStore
     {
+        private static readonly List<object> Events = new List<object>();
+        private static readonly List<IProjection> Projections = new List<IProjection>();
+
+        public static void CommitEvent(object @event)
+        {
+            Events.Add(@event);
+            foreach(var projection in Projections)
+            {
+                projection.Consume(@event);
+            }
+        }
+
+        public static void RegisterProjection(IProjection projection)
+        {
+            Projections.Add(projection);
+        }
+
         public static IEnumerable<EventContext> GetEvents(DateTimeOffset? asOf = null)
         {
             var orderId = Guid.NewGuid();
 
-            return GetEventPayloads(orderId)
+            return Events
                     .Select((payload, i) => WrapPayload(orderId, i, payload))
                     .Where(a => asOf == null || a.Timestamp <= asOf.Value)
                     .OrderBy(a => a.Sequence);
@@ -19,7 +79,7 @@ namespace ConsoleApplication.EventStore
 
         private static readonly DateTimeOffset BaseTime = new DateTimeOffset(2010, 6, 7, 10, 34, 18, 0, TimeSpan.Zero);
 
-        private static IEnumerable<object> GetEventPayloads(Guid orderId)
+        public static IEnumerable<object> GetEventPayloads(Guid orderId)
         {                        
             yield return new OrderInitialized
             {
@@ -37,10 +97,10 @@ namespace ConsoleApplication.EventStore
                 Price = 18.20m
             };
 
-            // yield return new ItemRemovedFromCart
-            // {
-            //     CartEntryId = cartEntryId
-            // };
+            yield return new ItemRemovedFromCart
+            {
+                CartEntryId = cartEntryId
+            };
 
             itemId = Guid.NewGuid();
             cartEntryId = Guid.NewGuid();
